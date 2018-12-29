@@ -1,10 +1,14 @@
 package ImageHoster.controller;
 
-import ImageHoster.model.Image;
-import ImageHoster.model.Tag;
-import ImageHoster.model.User;
-import ImageHoster.service.ImageService;
-import ImageHoster.service.TagService;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Date;
+import java.util.List;
+import java.util.StringTokenizer;
+
+import javax.servlet.http.HttpSession;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -14,9 +18,11 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.servlet.http.HttpSession;
-import java.io.IOException;
-import java.util.*;
+import ImageHoster.model.Image;
+import ImageHoster.model.Tag;
+import ImageHoster.model.User;
+import ImageHoster.service.ImageService;
+import ImageHoster.service.TagService;
 
 @Controller
 public class ImageController {
@@ -45,9 +51,17 @@ public class ImageController {
     //Also now you need to add the tags of an image in the Model type object
     //Here a list of tags is added in the Model type object
     //this list is then sent to 'images/image.html' file and the tags are displayed
-    @RequestMapping("/images/{title}")
-    public String showImage(@PathVariable("title") String title, Model model) {
-        Image image = imageService.getImageByTitle(title);
+    
+    final static String EDIT_ERROR = "Only the owner of the image can edit the image";
+    final static String DELETE_ERROR = "Only the owner of the image can delete the image";
+    
+    @RequestMapping("/images/{imageId}/{title}")
+    public String showImage(@PathVariable("title") String title,@PathVariable("imageId") Integer id, Model model, HttpSession session) {
+        Image image = imageService.getImage(id);
+//        List<Comment> comments = new ArrayList<>();
+//        if(image!= null && image.getComments()!=null)
+//        	comments = image.getComments();
+        model.addAttribute("comments", image.getComments());
         model.addAttribute("image", image);
         model.addAttribute("tags", image.getTags());
         return "images/image";
@@ -92,13 +106,24 @@ public class ImageController {
     //The method first needs to convert the list of all the tags to a string containing all the tags separated by a comma and then add this string in a Model type object
     //This string is then displayed by 'edit.html' file as previous tags of an image
     @RequestMapping(value = "/editImage")
-    public String editImage(@RequestParam("imageId") Integer imageId, Model model) {
+    public String editImage(@RequestParam("imageId") Integer imageId, Model model, HttpSession session) {
         Image image = imageService.getImage(imageId);
-
+        User user = (User) session.getAttribute("loggeduser");
         String tags = convertTagsToString(image.getTags());
         model.addAttribute("image", image);
         model.addAttribute("tags", tags);
-        return "images/edit";
+        if(!user.getUsername().equals(image.getUser().getUsername()))
+        {
+        	model.addAttribute("editError", EDIT_ERROR);
+    		model.addAttribute("comments", image.getComments());
+            model.addAttribute("image", image);
+            model.addAttribute("tags", image.getTags());
+    		return "images/image";
+        }
+        else
+        {
+        	return "images/edit";
+        }
     }
 
     //This controller method is called when the request pattern is of type 'images/edit' and also the incoming request is of PUT type
@@ -132,7 +157,7 @@ public class ImageController {
         updatedImage.setDate(new Date());
 
         imageService.updateImage(updatedImage);
-        return "redirect:/images/" + updatedImage.getTitle();
+        return "redirect:/images/"+updatedImage.getId()+"/" + updatedImage.getTitle();
     }
 
 
@@ -140,9 +165,22 @@ public class ImageController {
     //The method calls the deleteImage() method in the business logic passing the id of the image to be deleted
     //Looks for a controller method with request mapping of type '/images'
     @RequestMapping(value = "/deleteImage", method = RequestMethod.DELETE)
-    public String deleteImageSubmit(@RequestParam(name = "imageId") Integer imageId) {
-        imageService.deleteImage(imageId);
-        return "redirect:/images";
+    public String deleteImageSubmit(Model model,@RequestParam(name = "imageId") Integer imageId, HttpSession session) {
+    	User user = (User) session.getAttribute("loggeduser");
+    	Image image = imageService.getImage(imageId);
+    	if(!user.getUsername().equals(image.getUser().getUsername()))
+    	{
+    		model.addAttribute("deleteError", DELETE_ERROR);
+    		model.addAttribute("comments", image.getComments());
+            model.addAttribute("image", image);
+            model.addAttribute("tags", image.getTags());
+    		return "images/image";
+    	}
+    	else
+    	{
+    		imageService.deleteImage(imageId);
+    		return "redirect:/images";
+    	}
     }
 
 
@@ -177,13 +215,11 @@ public class ImageController {
     //Returns the string
     private String convertTagsToString(List<Tag> tags) {
         StringBuilder tagString = new StringBuilder();
-
-        for (int i = 0; i <= tags.size() - 2; i++) {
-            tagString.append(tags.get(i).getName()).append(",");
+        //function causing test to fail 
+        //so it is updated
+        for (Tag tag : tags) {
+            tagString.append(tag.getName()).append(",");
         }
-
-        Tag lastTag = tags.get(tags.size() - 1);
-        tagString.append(lastTag.getName());
 
         return tagString.toString();
     }
