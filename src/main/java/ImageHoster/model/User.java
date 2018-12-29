@@ -18,6 +18,9 @@ public class User {
     //Here the column name is explicitly mentioned as 'id'
     @Column(name = "id")
     private Integer id;
+    
+    @OneToMany(mappedBy = "user", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
+    private List<Comment> comments = new ArrayList<>();
 
     @Column(name = "username")
     private String username;
@@ -80,5 +83,14 @@ public class User {
     public void setImages(List<Image> images) {
         this.images = images;
     }
+
+	public List<Comment> getComments() {
+		return comments;
+	}
+
+	public void setComments(List<Comment> comments) {
+		this.comments = comments;
+	}
+    
 }
 

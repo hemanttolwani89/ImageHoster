@@ -20,6 +20,9 @@ public class Image {
     //Here the column name is explicitly mentioned as 'id'
     @Column(name = "id")
     private Integer id;
+    
+    @OneToMany(mappedBy = "image", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
+    private List<Comment> comments = new ArrayList<>();
 
     @Column(name = "title")
     private String title;
@@ -126,4 +129,13 @@ public class Image {
     public void setTags(List<Tag> tags) {
         this.tags = tags;
     }
+
+	public List<Comment> getComments() {
+		return comments;
+	}
+
+	public void setComments(List<Comment> comments) {
+		this.comments = comments;
+	}
+    
 }
